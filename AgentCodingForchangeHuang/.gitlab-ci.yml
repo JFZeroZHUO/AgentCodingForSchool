@@ -1,0 +1,22 @@
+image: ${LAUNCHER_CICD_IMAGE}
+
+stages:
+  - setup
+  - running
+
+bootstrap:
+  stage: setup
+  script: bootstrap
+  artifacts:
+    paths:
+      - dynamic_pipeline.yml
+  tags:
+    - office
+
+trigger-artifacts:
+  stage: running
+  trigger:
+    strategy: depend
+    include:
+      - artifact: dynamic_pipeline.yml
+        job: bootstrap
