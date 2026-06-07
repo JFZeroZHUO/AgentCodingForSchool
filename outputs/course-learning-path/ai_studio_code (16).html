@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能体创新工坊 - 教学系统演示</title>
+    <style>
+        :root {
+            --bg-color: #fdfcfb;
+            --card-bg: #ffffff;
+            --unlearned-bg: #f5f3ee; /* 小白消消乐：未学习背景色块 */
+            --text-primary: #1e1b18;
+            --text-secondary: #5c554e;
+            --accent-color: #d97757;
+            --accent-light: #fbf0ea;
+            --border-color: #eae6df;
+            --shadow: 0 4px 20px rgba(30, 27, 24, 0.02);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* 锁死选中，防止拖拽分栏时文本意外高亮 */
+        body.resizing * {
+            user-select: none !important;
+            -webkit-user-select: none !important;
+            cursor: col-resize !important;
+        }
+
+        /* ==================== 全局主页导航栏 ==================== */
+        nav {
+            background-color: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .logo {
+            font-weight: 800;
+            font-size: 1.2rem;
+            letter-spacing: -0.5px;
+        }
+
+        /* 视图基础控制 */
+        .page-view {
+            display: none;
+            min-height: calc(100vh - 70px);
+        }
+
+        .page-view.active {
+            display: block;
+        }
+
+        /* ==================== 首页大纲双栏主界面布局 ==================== */
+        .home-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .dashboard {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 35px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        .stat-panel {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat-num {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .stat-num span {
+            color: var(--accent-color);
+        }
+
+        .stat-lbl {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+
+        /* 左右双栏 */
+        .home-main-layout {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        @media (max-width: 768px) {
+            .home-main-layout { grid-template-columns: 1fr; }
+        }
+
+        /* 左边侧大纲目录栏 */
+        .syllabus-sidebar {
+            position: sticky;
+            top: 30px;
+            height: fit-content;
+        }
+
+        .directory-title {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+            letter-spacing: 0.5px;
+        }
+
+        .directory-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .directory-item {
+            background: none;
+            border: 1px solid transparent;
+            padding: 12px 16px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .directory-item.active, .directory-item:hover {
+            background-color: var(--accent-light);
+            color: var(--accent-color);
+            border-color: var(--border-color);
+        }
+
+        /* 右侧卡片排版 */
+        .syllabus-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .unit-card {
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        /* 【消消乐核心逻辑样式】 */
+        .unit-card.uncompleted {
+            background-color: var(--unlearned-bg); /* 未学习：有色块底盘填充 */
+        }
+
+        .unit-card.completed {
+            background-color: var(--card-bg); /* 已学完：底融化消色变回干净的纯白 */
+            box-shadow: var(--shadow);
+        }
+
+        .unit-badge {
+            width: 60px;
+            height: 60px;
+            background: var(--accent-light);
+            color: var(--accent-color);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .unit-badge .week-num { font-size: 1.1rem; }
+        .unit-badge .week-lbl { font-size: 0.6rem; margin-top: -3px; }
+
+        .unit-info { flex-grow: 1; }
+        .unit-meta { font-size: 0.8rem; color: var(--accent-color); font-weight: 700; margin-bottom: 4px; }
+        .unit-title { font-size: 1.1rem; font-weight: 700; margin-bottom: 6px; }
+        .unit-desc { font-size: 0.9rem; color: var(--text-secondary); }
+
+        .unit-action {
+            padding: 10px 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            font-weight: 600;
+            background: var(--card-bg);
+            transition: all 0.2s;
+        }
+
+        .unit-card.uncompleted:hover .unit-action {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        /* ==================== 高级四分栏单课工作空间布局 ==================== */
+        .classroom-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh; /* 撑满屏幕 */
+            background: #fafaf9;
+            overflow: hidden;
+        }
+
+        /* 块1：极致对称单行页眉 */
+        .classroom-header {
+            height: 70px;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+            z-index: 20;
+        }
+
+        .classroom-header .left-section {
+            flex: 1;
+            display: flex;
+            justify-content: flex-start;
+        }
+
+        .classroom-header .center-section {
+            flex: 2;
+            text-align: center;
+            font-weight: 800;
+            font-size: 1.15rem;
+            color: var(--text-primary);
+        }
+
+        .classroom-header .right-section {
+            flex: 1;
+            display: flex;
+            justify-content: flex-end;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .back-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .back-btn:hover {
+            border-color: var(--text-primary);
+            background-color: var(--bg-color);
+        }
+
+        /* 下方可调比例主容器 */
+        .classroom-body {
+            display: flex;
+            flex-direction: row;
+            flex-grow: 1;
+            overflow: hidden;
+            width: 100%;
+            position: relative;
+        }
+
+        @media (max-width: 900px) {
+            .classroom-body { flex-direction: column; overflow-y: auto; }
+        }
+
+        /* 左侧工作区 (视频与作业) */
+        .left-panel {
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            height: 100%;
+            overflow: hidden;
+            flex-shrink: 0; /* 禁止被动压缩 */
+        }
+
+        /* 块2：拟真视频播放处 */
+        .video-box {
+            height: 55%;
+            background: #0d0c0b;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .video-mock {
+            text-align: center;
+            color: #7c756e;
+        }
+
+        .video-play-btn {
+            width: 58px;
+            height: 58px;
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 12px;
+            cursor: pointer;
+            color: white;
+            transition: all 0.2s;
+        }
+
+        .video-play-btn:hover {
+            transform: scale(1.04);
+            border-color: white;
+            background: rgba(255,255,255,0.15);
+        }
+
+        /* 块3：本课作业提交区 */
+        .homework-box {
+            height: 45%;
+            background: var(--card-bg);
+            padding: 24px 30px;
+            overflow-y: auto;
+        }
+
+        .hw-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .hw-title::before { content: "📝"; }
+
+        .submit-btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 22px;
+            border-radius: 6px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            cursor: pointer;
+            margin-top: 15px;
+            display: inline-block;
+            transition: opacity 0.2s;
+        }
+
+        .submit-btn:hover { opacity: 0.9; }
+
+        /* ==================== 拖动分割中控线样式 ==================== */
+        .splitter {
+            width: 8px;
+            background-color: var(--border-color);
+            cursor: col-resize;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            transition: background-color 0.15s;
+            flex-shrink: 0;
+        }
+
+        /* 悬停或拖拽高亮 */
+        .splitter:hover, body.resizing .splitter {
+            background-color: var(--accent-color);
+        }
+
+        /* 阻尼防滑手柄 */
+        .splitter-handle {
+            position: absolute;
+            width: 20px;
+            height: 38px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(28, 25, 23, 0.08);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .splitter:hover .splitter-handle, body.resizing .splitter-handle {
+            border-color: var(--accent-color);
+        }
+
+        /* 右侧工作区 (块4：独立滚动教学文档) */
+        .right-doc-panel {
+            height: 100%;
+            overflow-y: auto;
+            background: var(--card-bg);
+            padding: 35px 40px;
+            flex-grow: 1; /* 自动分配拉伸 */
+            flex-shrink: 0;
+        }
+
+        .doc-step {
+            margin-bottom: 30px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 25px;
+        }
+
+        .doc-step-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+            margin-bottom: 10px;
+        }
+
+        .code-block {
+            background-color: #faf9f6;
+            border: 1px dashed var(--accent-color);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.95rem;
+            margin: 15px 0;
+        }
+
+        /* 嵌入沙盒计算器 */
+        .calc-sandbox {
+            background: #111;
+            padding: 20px;
+            border-radius: 16px;
+            width: fit-content;
+            margin: 20px auto;
+        }
+
+        .calc-screen {
+            width: 100%;
+            height: 70px;
+            background: #000000;
+            color: white;
+            text-align: right;
+            border: none;
+            font-size: 2.2rem;
+            padding: 10px;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 10px;
+        }
+
+        .calc-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .calc-btn {
+            background: #222222;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            height: 46px;
+            width: 46px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.1s;
+        }
+
+        .calc-btn:active { opacity: 0.7; }
+        .calc-btn.operator { background: #ff9f0a; }
+        .calc-btn.function { background: #a5a5a5; color: black; }
+        .calc-btn.double {
+            grid-column: span 2;
+            width: auto;
+            border-radius: 23px;
+            justify-content: flex-start;
+            padding-left: 18px;
+        }
+
+        .classroom-complete-btn {
+            width: 100%;
+            background-color: var(--text-primary);
+            color: white;
+            border: none;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 30px;
+            transition: background-color 0.2s;
+        }
+
+        .classroom-complete-btn:hover {
+            background-color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 首页导航栏（进入单课页后会自动隐去） -->
+    <nav id="global-navbar">
+        <div class="logo">智能体创新工坊</div>
+        <div style="font-size: 0.9rem; color: var(--text-secondary); font-weight: 500;">零基础 AI 协同学习平台</div>
+    </nav>
+
+    <!-- ==================== 首页双栏视图 ==================== -->
+    <div class="page-view active" id="view-home">
+        <div class="home-container">
+            <!-- 进度统计 -->
+            <div class="dashboard">
+                <div>
+                    <h2 style="font-weight: 800; font-size: 1.4rem; margin-bottom: 5px;">我的学习进度 🚀</h2>
+                    <p style="font-size: 0.9rem; color: var(--text-secondary);">未开始的卡片为灰色背景，学完自动消融变回纯白色。</p>
+                </div>
+                <div class="stat-panel">
+                    <div>
+                        <div class="stat-num" id="completed-stat">0/3</div>
+                        <div class="stat-lbl">已通关课时</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 主目录双栏排版布局 -->
+            <div class="home-main-layout">
+                <!-- 左侧：课程大纲目录导航 -->
+                <aside class="syllabus-sidebar">
+                    <div class="directory-title">课程大纲目录</div>
+                    <div class="directory-list">
+                        <button class="directory-item active" onclick="filterSyllabus('all')">📍 全部大纲阶段</button>
+                        <button class="directory-item" onclick="filterSyllabus('basic')">🌱 网页基础篇</button>
+                        <button class="directory-item" onclick="filterSyllabus('db')">🗄️ 数据与全栈篇</button>
+                    </div>
+                </aside>
+
+                <!-- 右侧：对应课程卡片列表 -->
+                <div class="syllabus-list">
+                    <!-- 第一周 -->
+                    <div class="unit-card uncompleted" id="card-w1" data-category="basic" onclick="enterLesson('w1')">
+                        <div class="unit-badge">
+                            <span class="week-num">W1</span>
+                            <span class="week-lbl">Week</span>
+                        </div>
+                        <div class="unit-info">
+                            <div class="unit-meta">课前热身挑战 • 小白友好</div>
+                            <div class="unit-title">和 AI 一起，制作计算器网页</div>
+                            <div class="unit-desc">用最简单的白话向 AI 提出你的需求，免开发环境直接在桌面建立运行网页计算器。</div>
+                        </div>
+                        <button class="unit-action" id="btn-status-w1">立即学习</button>
+                    </div>
+
+                    <!-- 第二周 -->
+                    <div class="unit-card uncompleted" id="card-w2" data-category="basic">
+                        <div class="unit-badge">
+                            <span class="week-num">W2</span>
+                            <span class="week-lbl">Week</span>
+                        </div>
+                        <div class="unit-info">
+                            <div class="unit-meta">网页入门 AI 认知</div>
+                            <div class="unit-title">匹配基础网页 AI 认知</div>
+                            <div class="unit-desc">探索浏览器加载网页的技术分工，通俗解读 HTML/CSS/JS 的核心作用。</div>
+                        </div>
+                        <button class="unit-action">待解锁</button>
+                    </div>
+
+                    <!-- 第五周 -->
+                    <div class="unit-card uncompleted" id="card-w5" data-category="db">
+                        <div class="unit-badge">
+                            <span class="week-num">W5</span>
+                            <span class="week-lbl">Week</span>
+                        </div>
+                        <div class="unit-info">
+                            <div class="unit-meta">轻量数据库应用</div>
+                            <div class="unit-title">飞书多维表格作为数据库，直接匹配第 5 周</div>
+                            <div class="unit-desc">把飞书作为你的云端数据中心，告别复杂的数据库语言，轻量快捷地存储表单。</div>
+                        </div>
+                        <button class="unit-action">待解锁</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ==================== 四分栏单课工作视窗（内含拖拽与磁吸边缘机制） ==================== -->
+    <div class="page-view" id="view-classroom" style="min-height: 100vh;">
+        <div class="classroom-container">
+            
+            <!-- 页眉 -->
+            <div class="classroom-header">
+                <div class="left-section">
+                    <button class="back-btn" onclick="exitToHome()">← 返回课程大纲</button>
+                </div>
+                <div class="center-section">
+                    和 AI 一起，制作计算器网页
+                </div>
+                <div class="right-section">
+                    零基础 AI 协同学习平台 • 第一周
+                </div>
+            </div>
+
+            <!-- 主拖动分栏区 -->
+            <div class="classroom-body" id="workspace-body">
+                
+                <!-- 左半侧 (面板1 & 面板2) -->
+                <div class="left-panel" id="pane-left" style="width: 46%;">
+                    <!-- 视频 -->
+                    <div class="video-box">
+                        <div class="video-mock">
+                            <div class="video-play-btn">
+                                <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" style="margin-left: 2px;"><path d="M8 5v14l11-7z"/></svg>
+                            </div>
+                            <span style="font-size: 0.85rem; letter-spacing: 0.5px;">第1周 视频讲授（点击开始播放）</span>
+                        </div>
+                    </div>
+
+                    <!-- 作业 -->
+                    <div class="homework-box">
+                        <div class="hw-title">本课作业要求</div>
+                        <p style="font-size: 0.9rem; line-height: 1.6; margin-bottom: 12px; color: var(--text-secondary);">
+                            请参照右侧文档中的步骤，协同 AI 助手，在你的本地电脑桌面上双击运行这个网页计算器。成功后截图并点击下方按钮上传提交。
+                        </p>
+                        <button class="submit-btn" onclick="alert('系统已拉起本地文件上传窗口...')">上传并提交实战截图</button>
+                    </div>
+                </div>
+
+                <!-- 拖动控制中间条 -->
+                <div class="splitter" id="pane-splitter">
+                    <div class="splitter-handle">
+                        <!-- 六孔经典防滑纹理 -->
+                        <svg width="8" height="16" viewBox="0 0 8 16" fill="none">
+                            <circle cx="2" cy="3" r="1" fill="#b0aea5"/>
+                            <circle cx="2" cy="8" r="1" fill="#b0aea5"/>
+                            <circle cx="2" cy="13" r="1" fill="#b0aea5"/>
+                            <circle cx="6" cy="3" r="1" fill="#b0aea5"/>
+                            <circle cx="6" cy="8" r="1" fill="#b0aea5"/>
+                            <circle cx="6" cy="13" r="1" fill="#b0aea5"/>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- 右半侧 (面板4：教学文档) -->
+                <div class="right-doc-panel" id="pane-right">
+                    <div class="doc-step">
+                        <div class="doc-step-title">步骤 1：寻找你的 AI 搭档</div>
+                        <p style="font-size: 0.95rem;">点击网页版豆包、Kimi或风变AI，将以下指令粘贴发送给它：</p>
+                        <div class="code-block">
+                            “请帮我生成一个计算器网页代码，整体呈现精致美观的 iOS 风格。需要把所有的 HTML、CSS 和 JS 代码整理合并在一个单文件中。”
+                        </div>
+                    </div>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">步骤 2：建立本地网页</div>
+                        <p style="font-size: 0.95rem;">在桌面新建空白文本文档，粘贴刚才复制的代码，并修改其文件名后缀，由 <code>.txt</code> 变为 <code>.html</code>。双击即可在本地打开使用！</p>
+                    </div>
+
+                    <div class="doc-step">
+                        <div class="doc-step-title">计算器互动演练沙盒</div>
+                        <p style="font-size: 0.95rem; margin-bottom: 10px;">（在这里，你可以直接体验 AI 所能达到的动态计算效果）：</p>
+                        
+                        <!-- 嵌入计算器 -->
+                        <div class="calc-sandbox">
+                            <input type="text" class="calc-screen" id="calc-display" value="0" disabled>
+                            <div class="calc-grid">
+                                <button class="calc-btn function" onclick="clearCalc()">AC</button>
+                                <button class="calc-btn function" onclick="toggleSign()">+/-</button>
+                                <button class="calc-btn function" onclick="inputPercent()">%</button>
+                                <button class="calc-btn operator" onclick="setOp('/')">÷</button>
+                                
+                                <button class="calc-btn" onclick="inputNum('7')">7</button>
+                                <button class="calc-btn" onclick="inputNum('8')">8</button>
+                                <button class="calc-btn" onclick="inputNum('9')">9</button>
+                                <button class="calc-btn operator" onclick="setOp('*')">×</button>
+                                
+                                <button class="calc-btn" onclick="inputNum('4')">4</button>
+                                <button class="calc-btn" onclick="inputNum('5')">5</button>
+                                <button class="calc-btn" onclick="inputNum('6')">6</button>
+                                <button class="calc-btn operator" onclick="setOp('-')">-</button>
+                                
+                                <button class="calc-btn" onclick="inputNum('1')">1</button>
+                                <button class="calc-btn" onclick="inputNum('2')">2</button>
+                                <button class="calc-btn" onclick="inputNum('3')">3</button>
+                                <button class="calc-btn operator" onclick="setOp('+')">+</button>
+                                
+                                <button class="calc-btn double" onclick="inputNum('0')">0</button>
+                                <button class="calc-btn" onclick="inputDot()">.</button>
+                                <button class="calc-btn operator" onclick="calculate()">=</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 提交保存动作 -->
+                    <button class="classroom-complete-btn" onclick="completeLessonAndSubmit()">我已完成本课学习，并提交了作业</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const globalNavbar = document.getElementById('global-navbar');
+        const viewHome = document.getElementById('view-home');
+        const viewClassroom = document.getElementById('view-classroom');
+
+        const workspaceBody = document.getElementById('workspace-body');
+        const paneLeft = document.getElementById('pane-left');
+        const paneRight = document.getElementById('pane-right');
+        const splitter = document.getElementById('pane-splitter');
+
+        let isResizing = false;
+
+        // 切换视图，自动校准
+        function enterLesson(id) {
+            if(id === 'w1') {
+                globalNavbar.style.display = 'none'; 
+                viewHome.classList.remove('active');
+                viewClassroom.classList.add('active');
+                resetSplitPane(); 
+            }
+        }
+
+        function exitToHome() {
+            globalNavbar.style.display = 'flex'; 
+            viewClassroom.classList.remove('active');
+            viewHome.classList.add('active');
+        }
+
+        // 课程大纲目录过滤器逻辑
+        function filterSyllabus(category) {
+            const cards = document.querySelectorAll('.unit-card');
+            const items = document.querySelectorAll('.directory-item');
+
+            // 高亮状态切换
+            items.forEach(item => item.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // 卡片实时筛选
+            cards.forEach(card => {
+                if (category === 'all' || card.getAttribute('data-category') === category) {
+                    card.style.display = 'flex';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        function resetSplitPane() {
+            paneLeft.style.width = "46%";
+            paneLeft.style.display = "flex";
+            paneRight.style.display = "block";
+        }
+
+        // ==================== 中控拖拽与边缘吸附逻辑 ====================
+        splitter.addEventListener('mousedown', function(e) {
+            isResizing = true;
+            document.body.classList.add('resizing');
+        });
+
+        document.addEventListener('mousemove', function(e) {
+            if (!isResizing) return;
+
+            const containerRect = workspaceBody.getBoundingClientRect();
+            const containerWidth = containerRect.width;
+            
+            let offsetX = e.clientX - containerRect.left;
+            let percentage = (offsetX / containerWidth) * 100;
+
+            if (percentage < 0) percentage = 0;
+            if (percentage > 100) percentage = 100;
+
+            const snapLeftThreshold = 12;  
+            const snapRightThreshold = 88; 
+
+            if (percentage < snapLeftThreshold) {
+                paneLeft.style.width = "0%";
+                paneLeft.style.display = "none";
+                paneRight.style.display = "block";
+            } else if (percentage > snapRightThreshold) {
+                paneLeft.style.width = "100%";
+                paneLeft.style.display = "flex";
+                paneRight.style.display = "none";
+            } else {
+                paneLeft.style.display = "flex";
+                paneRight.style.display = "block";
+                paneLeft.style.width = percentage + "%";
+            }
+        });
+
+        document.addEventListener('mouseup', function() {
+            if (isResizing) {
+                isResizing = false;
+                document.body.classList.remove('resizing');
+            }
+        });
+
+        // 提交成功触发“消消乐”卡片色块溶解变回纯白背景
+        function completeLessonAndSubmit() {
+            const cardW1 = document.getElementById('card-w1');
+            const btnW1 = document.getElementById('btn-status-w1');
+            
+            cardW1.classList.remove('uncompleted');
+            cardW1.classList.add('completed'); // 溶解底色为白色背景
+            
+            btnW1.innerText = "已学完 ✓";
+            btnW1.style.color = "#788c5d";
+            btnW1.style.borderColor = "#eae6df";
+            btnW1.style.backgroundColor = "#f5f7f2";
+
+            document.getElementById('completed-stat').innerHTML = "<span>1</span>/3";
+
+            alert('完成本课！第 1 周课程色块已顺利消除，变回纯白色背景。');
+            
+            exitToHome();
+        }
+
+        /* 嵌入计算器逻辑代码 */
+        let currentInput = "0";
+        let previousInput = "";
+        let operation = null;
+        let shouldResetScreen = false;
+
+        const display = document.getElementById('calc-display');
+
+        function updateScreen() { display.value = currentInput; }
+
+        function inputNum(num) {
+            if (currentInput === "0" || shouldResetScreen) {
+                currentInput = num;
+                shouldResetScreen = false;
+            } else {
+                currentInput += num;
+            }
+            updateScreen();
+        }
+
+        function inputDot() {
+            if (shouldResetScreen) {
+                currentInput = "0.";
+                shouldResetScreen = false;
+                updateScreen();
+                return;
+            }
+            if (!currentInput.includes('.')) {
+                currentInput += '.';
+                updateScreen();
+            }
+        }
+
+        function clearCalc() {
+            currentInput = "0";
+            previousInput = "";
+            operation = null;
+            shouldResetScreen = false;
+            updateScreen();
+        }
+
+        function toggleSign() {
+            currentInput = (parseFloat(currentInput) * -1).toString();
+            updateScreen();
+        }
+
+        function inputPercent() {
+            currentInput = (parseFloat(currentInput) / 100).toString();
+            updateScreen();
+        }
+
+        function setOp(op) {
+            if (operation !== null) calculate();
+            previousInput = currentInput;
+            operation = op;
+            shouldResetScreen = true;
+        }
+
+        function calculate() {
+            if (operation === null || shouldResetScreen) return;
+            let result = 0;
+            const prev = parseFloat(previousInput);
+            const current = parseFloat(currentInput);
+
+            switch (operation) {
+                case '+': result = prev + current; break;
+                case '-': result = prev - current; break;
+                case '*': result = prev * current; break;
+                case '/': result = current !== 0 ? prev / current : "Error"; break;
+                default: return;
+            }
+            currentInput = result.toString();
+            operation = null;
+            shouldResetScreen = true;
+            updateScreen();
+        }
+    </script>
+</body>
+</html>

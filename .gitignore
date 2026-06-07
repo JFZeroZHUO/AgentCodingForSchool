@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Next.js build output
+.next/
+**/.next/
+out/
+build/
+dist/
+
+# Logs and local runtime output
+*.log
+logs/
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temporary Office files
+~$*
+
+# Verification screenshots and generated previews
+outputs/course-learning-path/site-screenshots/
+outputs/course-learning-path/*.png
+
+# Vercel/local caches
+.vercel/
+.cache/
+.parcel-cache/
