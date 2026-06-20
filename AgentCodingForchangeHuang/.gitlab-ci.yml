@@ -1,5 +1,8 @@
 image: ${LAUNCHER_CICD_IMAGE}
 
+variables:
+  CI_PROJECT_NAME: "agentcodingforsuperh"
+
 stages:
   - setup
   - running
